@@ -1,0 +1,30 @@
+{
+  "name": "kitto",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A tiny animated pixel cat that lives on your desktop and reacts to your AI coding agents.",
+  "packageManager": "pnpm@10.34.1",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "art": "node scripts/gen-placeholder-art.mjs",
+    "hook:install": "node scripts/install-claude-hook.mjs",
+    "hook:uninstall": "node scripts/install-claude-hook.mjs --uninstall",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.11.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.2",
+    "typescript": "6.0.3",
+    "vite": "8.0.14",
+    "vitest": "4.1.7"
+  }
+}

@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# rust / tauri
+src-tauri/target/
+src-tauri/gen/
+
+# os
+.DS_Store
+Thumbs.db
+
+# local env / editor
+*.local
+.vscode/*
+!.vscode/extensions.json
+
+# art scratch + reference (personal-use stock, intermediate bake outputs) — never ship.
+# The shippable artifacts live elsewhere: assets/*.png and scripts/bake-vector-cat.py.
+scripts/art-candidates/

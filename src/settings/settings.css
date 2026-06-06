@@ -1,0 +1,251 @@
+/* Settings window styling (M6). A normal opaque window — unlike the transparent,
+   click-through overlay — so it gets its own stylesheet rather than style.css. */
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #1b1b21;
+  color: #f0f0f4;
+  font: 13px/1.45 system-ui, -apple-system, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#settings {
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 16px 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+#settings h1 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+}
+
+#settings section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #24242c;
+}
+
+#settings h2 {
+  margin: 0 0 2px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #b6b6c4;
+}
+
+label.line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+label.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+input[type="number"] {
+  width: 64px;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #15151a;
+  color: #f0f0f4;
+  font: inherit;
+  text-align: right;
+}
+
+select {
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #15151a;
+  color: #f0f0f4;
+  font: inherit;
+}
+
+input[type="color"] {
+  width: 44px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+
+/* Preset fur swatches. */
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.swatches button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.swatches button.selected {
+  border-color: #5d87ff;
+}
+
+/* Reminders section (MA-2): add form + the list of pending reminders. */
+.reminder-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reminder-form input[type="text"] {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 5px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #15151a;
+  color: #f0f0f4;
+  font: inherit;
+}
+
+.reminder-form .line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reminder-form .line input[type="text"] {
+  flex: 1;
+  min-width: 0;
+}
+
+#set-rem-add {
+  flex: 0 0 auto;
+  cursor: pointer;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: #4f7cff;
+}
+
+#set-rem-add:hover {
+  background: #5d87ff;
+}
+
+#set-rem-status:not(:empty) {
+  font-size: 11px;
+  color: #8f8fa0;
+}
+
+.reminders-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reminders-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  background: #15151a;
+}
+
+.reminders-list li.empty {
+  justify-content: center;
+  color: #8f8fa0;
+  font-size: 12px;
+  background: none;
+  padding: 4px 0;
+}
+
+.reminders-list .rem-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reminders-list .rem-when {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  color: #b6b6c4;
+  font-size: 12px;
+}
+
+.reminders-list .rem-del {
+  flex: 0 0 auto;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  color: #8f8fa0;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 5px;
+}
+
+.reminders-list .rem-del:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+footer {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+}
+
+#settings-status {
+  font-size: 11px;
+  color: #8f8fa0;
+}
+
+#settings-done {
+  cursor: pointer;
+  border: 0;
+  border-radius: 7px;
+  padding: 7px 16px;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: #4f7cff;
+}
+
+#settings-done:hover {
+  background: #5d87ff;
+}

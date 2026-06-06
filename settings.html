@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kitto Settings</title>
+    <link rel="stylesheet" href="/src/settings/settings.css" />
+  </head>
+  <body>
+    <!-- M6 full settings window (KITTO_SPEC §5). A normal decorated window; the
+         always-on-top cat floats above it so fur/reaction edits preview live. -->
+    <main id="settings">
+      <h1>Kitto</h1>
+
+      <section>
+        <h2>Cat</h2>
+        <label class="line">
+          Which cat
+          <select id="set-cat">
+            <option value="gray">Gray (recolorable)</option>
+            <option value="tuxedo">Tuxedo</option>
+            <option value="ginger">Ginger (vector tabby)</option>
+          </select>
+        </label>
+        <p class="hint" id="tuxedo-note">The tuxedo &amp; ginger cats are fixed designs — fur colour &amp; pattern don't apply to them. Switching cats reloads the overlay.</p>
+      </section>
+
+      <section>
+        <h2>Fur</h2>
+        <div class="swatches" id="fur-swatches"></div>
+        <label class="line">
+          Custom color
+          <input id="set-fur-color" type="color" />
+        </label>
+        <label class="line">
+          Pattern
+          <select id="set-pattern">
+            <option value="none">None</option>
+            <option value="tabby">Tabby</option>
+            <option value="tuxedo">Tuxedo</option>
+            <option value="calico">Calico</option>
+          </select>
+        </label>
+      </section>
+
+      <section>
+        <h2>Ambient life</h2>
+        <label class="line">
+          Energy
+          <select id="set-energy">
+            <option value="off">Off</option>
+            <option value="calm">Calm</option>
+            <option value="low">Low</option>
+            <option value="mid">Balanced</option>
+            <option value="high">High</option>
+            <option value="playful">Playful</option>
+          </select>
+        </label>
+        <p class="hint">How lively the cat is on its own — wandering, napping, grooming, and playing. “Off” keeps it still until you interact.</p>
+        <label class="check"><input id="set-ambient-play" type="checkbox" /> Play with a wool ball</label>
+        <label class="check"><input id="set-ambient-daynight" type="checkbox" /> Day/night rhythm (naps more after dark)</label>
+        <label class="line">
+          Wander after (minutes, 0 = auto)
+          <input id="set-ambient-idle" type="number" min="0" max="30" step="0.5" />
+        </label>
+      </section>
+
+      <section>
+        <h2>Reactions</h2>
+        <label class="check"><input id="set-react-hunt" type="checkbox" /> Hunt a fast cursor</label>
+        <label class="check"><input id="set-react-pet" type="checkbox" /> Purr when hovered</label>
+        <label class="check"><input id="set-react-keyboard" type="checkbox" /> React to typing</label>
+        <label class="check"><input id="set-react-scroll" type="checkbox" /> React to scrolling</label>
+        <label class="check"><input id="set-react-agent" type="checkbox" /> React to AI agents</label>
+      </section>
+
+      <section>
+        <h2>Reminders</h2>
+        <form id="reminder-form" class="reminder-form">
+          <input id="set-rem-message" type="text" placeholder="Remind me to…" maxlength="200" />
+          <div class="line">
+            <input id="set-rem-when" type="text" placeholder="in 25m / at 3pm" />
+            <button id="set-rem-add" type="submit">Add</button>
+          </div>
+          <span id="set-rem-status" class="hint"></span>
+        </form>
+        <ul id="reminders-list" class="reminders-list"></ul>
+      </section>
+
+      <section>
+        <h2>Pomodoro (minutes)</h2>
+        <label class="line">Focus <input id="set-focus" type="number" min="1" max="180" /></label>
+        <label class="line">Short break <input id="set-short" type="number" min="1" max="60" /></label>
+        <label class="line">Long break <input id="set-long" type="number" min="1" max="120" /></label>
+        <label class="line">Sessions / long <input id="set-sessions" type="number" min="1" max="12" /></label>
+      </section>
+
+      <section>
+        <h2>Stretch reminder</h2>
+        <label class="check"><input id="set-stretch-on" type="checkbox" /> Enabled</label>
+        <label class="line">Every (minutes) <input id="set-stretch-int" type="number" min="1" max="240" /></label>
+      </section>
+
+      <section>
+        <h2>AI agent</h2>
+        <label class="check"><input id="set-sound-on" type="checkbox" /> Chime when an agent finishes</label>
+      </section>
+
+      <section>
+        <h2>Startup</h2>
+        <label class="check"><input id="set-autostart" type="checkbox" /> Launch Kitto at login</label>
+      </section>
+
+      <footer>
+        <span id="settings-status"></span>
+        <button id="settings-done" type="button">Done</button>
+      </footer>
+    </main>
+    <script type="module" src="/src/settings/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kitto</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <!-- MA-0: the overlay now fills the whole screen and stays put — there's no
+         window to drag, so the drag regions are gone. The cat is absolutely
+         positioned within the stage and moved by the locomotion controller;
+         drag-to-reposition the cat itself is a later milestone (MA-4 drag-to-bed). -->
+    <main id="stage">
+      <!-- Floating Pomodoro timer (M4), non-interactive, sits above the cat. -->
+      <canvas id="timer" hidden></canvas>
+      <!-- Wool ball the cat plays with (MA-3 / A2). Non-interactive (clicks pass
+           through to the desktop) — purely a prop the cat chases. -->
+      <canvas id="ball" hidden></canvas>
+      <canvas id="cat"></canvas>
+    </main>
+    <!-- Shown only if the OS denies the global input hook (M3). Non-interactive
+         so it never blocks clicks to the desktop underneath. -->
+    <div id="perm-hint" hidden></div>
+    <!-- Right-click-the-cat quick panel (M4, slimmed M6): the one-click Pomodoro
+         actions + a button to the full settings window. Hidden until opened; the
+         backdrop closes it. NOT a drag region, so clicks here interact instead of
+         moving the window. -->
+    <div id="controls" hidden>
+      <div id="controls-backdrop"></div>
+      <section id="controls-panel" role="dialog" aria-label="Kitto quick controls">
+        <header>
+          <span>Kitto</span>
+          <button id="controls-close" type="button" aria-label="Close">✕</button>
+        </header>
+
+        <div id="pomo-status">
+          <span id="pomo-phase">Focus</span>
+          <span id="pomo-time">25:00</span>
+        </div>
+        <div class="row buttons">
+          <button id="pomo-toggle" type="button">Start</button>
+          <button id="pomo-skip" type="button">Skip</button>
+          <button id="pomo-reset" type="button">Reset</button>
+        </div>
+        <button id="stretch-now" type="button">Stretch now</button>
+
+        <!-- Quick-add a reminder (MA-2 / B1): message + "when" → the cat trots to
+             centre and meows when it fires. The full list/management lives in the
+             settings window. -->
+        <form id="reminder-quick" class="reminder-quick">
+          <input id="rq-message" type="text" placeholder="Remind me to…" maxlength="200" />
+          <div class="row">
+            <input id="rq-when" type="text" placeholder="in 25m / at 3pm" />
+            <button id="rq-add" type="submit">Add</button>
+          </div>
+          <span id="rq-status" class="hint"></span>
+        </form>
+
+        <button id="open-settings" type="button">⚙ Settings…</button>
+      </section>
+    </div>
+    <!-- Reminder delivery banner (MA-2 / B1): shown near screen centre when a
+         reminder fires, where the cat trots to deliver. Interactive (Dismiss /
+         Snooze); main.ts keeps the window interactive while it's up. -->
+    <div id="reminder" hidden>
+      <section id="reminder-bubble" role="alert" aria-live="assertive">
+        <p id="reminder-message"></p>
+        <div class="row">
+          <button id="reminder-snooze" type="button">Snooze 5m</button>
+          <button id="reminder-dismiss" type="button">Dismiss</button>
+        </div>
+      </section>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,62 @@
+[package]
+name = "kitto"
+version = "0.1.0"
+description = "A tiny animated pixel cat that reacts to your AI coding agents."
+edition = "2021"
+rust-version = "1.77"
+default-run = "kitto"
+
+[lib]
+name = "kitto_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+# Pinned per the 7-day version-gap rule (newest stable on/before 2026-05-28).
+tauri-build = { version = "=2.6.2", features = [] }
+
+[dependencies]
+# `macos-private-api` is required for a transparent window on macOS (see tauri.conf.json
+# app.macOSPrivateApi). Pinned per the 7-day version-gap rule.
+tauri = { version = "=2.11.2", features = ["macos-private-api"] }
+# Serializing IPC event payloads to the webview (KITTO_SPEC §2). Pinned to the
+# version already resolved transitively by tauri — no new download, well past the
+# 7-day version-gap cutoff.
+serde = { version = "=1.0.228", features = ["derive"] }
+# File-watcher for the AI-agent status file (KITTO_SPEC §2 names `notify` for this;
+# §6, M5). Adapters (the Claude Code hooks) write a normalized status token to
+# `~/.kitto/agent-status`; this watches it and emits `kitto://agent` to the webview.
+# Cross-platform, needs no OS permission. Pinned per the 7-day version-gap rule to
+# the newest stable on/before 2026-05-28 (8.2.0 = 2025-08-03; 9.0.0 is only RCs).
+notify = "=8.2.0"
+# Autostart-on-login (M6 settings window). Official Tauri plugin — it manages the
+# macOS LaunchAgent and the Windows registry Run key so we never hand-roll fragile
+# login items. A NEW dependency beyond §2's list, approved for M6 (user opt-in).
+# Pinned per the 7-day version-gap rule (2.5.1 = 2025-10-27, well past the cutoff).
+tauri-plugin-autostart = "=2.5.1"
+
+# Non-macOS keyboard hook for M3. KITTO_SPEC §2 lists `rdev` OR `device_query`
+# "if rdev proves flaky on a target OS" — rdev crashes on macOS (decodes keys with
+# a main-thread-only API and aborts the process). device_query *polls* key state
+# (no event tap). On macOS we don't use it — its backend gates on Accessibility,
+# which a dev build launched as a child of an IDE does not inherit; macOS keyboard
+# goes through a CGEventTap (Input Monitoring) instead (see sensors/input.rs).
+# Pinned `=4.0.1` (2025-07-21, past the 7-day gap).
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+device_query = "=4.0.1"
+
+# macOS-only: CGEventTaps for global keyboard (KeyDown, count-only — never decodes
+# the key, so no rdev-style crash) and scroll (ScrollWheel). Taps gate on Input
+# Monitoring, which macOS attributes to the launching app, so a dev build inherits
+# the grant. Both crates are already resolved transitively (no new download);
+# pinned to those locked versions (core-graphics 0.25.0 = 2025-05-27, past the gap).
+[target.'cfg(target_os = "macos")'.dependencies]
+core-graphics = "=0.25.0"
+core-foundation = "=0.10.1"
+
+[profile.release]
+# Slim release builds — a mascot must not be bloated.
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

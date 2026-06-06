@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kitto · 4 Cat Shapes — Preview</title>
+<style>
+  :root {
+    --bg: #14131a;
+    --panel: #1e1c27;
+    --ink: #e9e6f2;
+    --muted: #9a93b3;
+    --line: #2c2937;
+    --accent: #f0a35e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    padding: 40px 24px 80px;
+  }
+  header { max-width: 980px; margin: 0 auto 28px; }
+  h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header p { color: var(--muted); margin: 0; max-width: 60ch; }
+  .controls {
+    max-width: 980px; margin: 0 auto 28px;
+    display: flex; gap: 18px; align-items: center; flex-wrap: wrap;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 18px;
+  }
+  .controls label { color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .controls input[type="color"] {
+    width: 34px; height: 26px; border: 1px solid var(--line);
+    border-radius: 6px; background: none; cursor: pointer; padding: 0;
+  }
+  .controls button {
+    background: #2a2735; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 12px; cursor: pointer; font: inherit;
+  }
+  .controls button:hover { border-color: var(--accent); }
+  .swatches { display: flex; gap: 6px; }
+  .swatch { width: 22px; height: 22px; border-radius: 5px; border: 1px solid #0004; cursor: pointer; }
+  .grid {
+    max-width: 980px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 18px;
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: 22px 18px 18px; text-align: center;
+  }
+  .card.current { border-style: dashed; border-color: #3b3748; }
+  .stage {
+    display: flex; align-items: flex-end; justify-content: center;
+    height: 168px;
+    /* faint floor + checker so transparency is visible */
+    background:
+      linear-gradient(transparent 71%, #ffffff10 71%, #ffffff10 72%, transparent 72%),
+      repeating-conic-gradient(#ffffff06 0% 25%, transparent 0% 50%) 0 / 20px 20px;
+    border-radius: 10px;
+    margin-bottom: 14px;
+  }
+  canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+  .name { font-weight: 600; font-size: 16px; }
+  .tag { color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .desc { color: var(--muted); font-size: 13px; margin-top: 6px; min-height: 3em; }
+  .dims { color: #6f6987; font-size: 11px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+  footer { max-width: 980px; margin: 36px auto 0; color: var(--muted); font-size: 13px; }
+  code { background: #00000040; padding: 1px 6px; border-radius: 5px; color: #d7cfff; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Kitto — four cat shapes 🐈</h1>
+  <p>Each is a hand-built <strong>32×32 pixel sprite</strong> drawn the same way the real engine renders Kitto:
+     nearest-neighbour, recolorable fur. The dashed card on the left is today's cat for comparison.
+     Pick a fur colour to confirm they all recolor cleanly. These are <em>idle/sitting</em> poses only — a preview of the silhouette, not the full animation set.</p>
+</header>
+
+<div class="controls">
+  <label>Fur
+    <input type="color" id="fur" value="#7d8794" />
+  </label>
+  <div class="swatches" id="swatches"></div>
+  <label>Zoom
+    <input type="range" id="zoom" min="3" max="8" value="5" />
+  </label>
+  <button id="toggleGrid">Toggle pixel grid</button>
+  <span style="color:var(--muted)">Eyes track your cursor 👀</span>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<footer>
+  Built for approval — nothing here is wired into the app yet. Once you pick the keepers, the next step is baking
+  each shape's full animation set (idle/walk/sleep/etc.) into the atlas. Open via
+  <code>pnpm exec vite preview</code> or just double-click the file.
+</footer>
+
+<script>
+// ---------------------------------------------------------------------------
+// A tiny pixel-sprite language. Each cat is a 32x32 grid of single chars:
+//   ' ' transparent   F fur (recolorable)   D dark fur / shade
+//   L light fur belly  P pink (nose/inner ear/paw)  E eye-white  N nose-dark
+//   K outline (near-black)   B blush
+// Eyes (E) get a live tracking pupil drawn on top.
+// ---------------------------------------------------------------------------
+
+const PALETTE = (fur) => {
+  const c = hexToRgb(fur);
+  return {
+    F: fur,
+    D: shade(c, 0.72),          // shadow / outline-ish fur
+    L: tint(c, 0.55),           // belly / muzzle highlight
+    K: shade(c, 0.40),          // hard outline
+    P: "#f3a9bd",               // pink
+    N: "#3a2b33",               // nose
+    E: "#f7f4ff",               // eye white
+    B: "#ff9db0",               // blush
+    " ": null,
+  };
+};
+
+function hexToRgb(h){h=h.replace('#','');return{r:parseInt(h.slice(0,2),16),g:parseInt(h.slice(2,4),16),b:parseInt(h.slice(4,6),16)};}
+function shade(c,f){return `rgb(${c.r*f|0},${c.g*f|0},${c.b*f|0})`;}
+function tint(c,f){return `rgb(${c.r+(255-c.r)*f|0},${c.g+(255-c.g)*f|0},${c.b+(255-c.b)*f|0})`;}
+
+// Helper: pad/truncate every row to 32 cols so ragged literals still align.
+function norm(rows){
+  const g = rows.map(r => (r + " ".repeat(32)).slice(0,32));
+  while (g.length < 32) g.unshift(" ".repeat(32));
+  return g.slice(0,32);
+}
+
+// === 0. CURRENT — chunky big-head gray cat (Kitto today, approximated) ======
+const CURRENT = norm([
+  "                                ",
+  "                                ",
+  "                                ",
+  "       KK            KK         ",
+  "      KFFK          KFFK        ",
+  "     KFPFK          KFPFK       ",
+  "     KFFFKKKKKKKKKKKKFFFK        ",
+  "     KFFFFFFFFFFFFFFFFFFK        ",
+  "    KFFFFFFFFFFFFFFFFFFFFK       ",
+  "    KFFEEFFFFFFFFFFEEFFFFK       ",
+  "    KFFEEFFFFFFFFFFEEFFFFK       ",
+  "    KFFFFFFFFNNFFFFFFFFFFK       ",
+  "    KFFFFFFFFNNFFFFFFFFFFK       ",
+  "    KFFFFFFLLLLLLFFFFFFFFK       ",
+  "    KFFFFFLLLLLLLLFFFFFFFK       ",
+  "     KFFFFLLLLLLLLFFFFFFK        ",
+  "     KFFFFFLLLLLLFFFFFFFK        ",
+  "      KFFFFFFFFFFFFFFFFK         ",
+  "      KFFFFFFFFFFFFFFFFK         ",
+  "      KFFFFFFFFFFFFFFFFK         ",
+  "      KFFFFFFFFFFFFFFFFK         ",
+  "      KFFFFFFFFFFFFFFFFK         ",
+  "      KFFFKFFFFFFKFFFFFK         ",
+  "      KFFFKFFFFFFKFFFFFK         ",
+  "      KLLLKFFFFFFKLLLLLK         ",
+  "      KKKK KKKKKK KKKKKK         ",
+  "                                ",
+  "                                ",
+  "                                ",
+  "                                ",
+  "                                ",
+  "                                ",
+]);
+
+// === 1. CHONK — round low blob, no neck, stubby legs ========================
+const CHONK = norm([
+  "                                ",
+  "                                ",
+  "      KK                KK      ",
+  "     KDDK              KDDK     ",
+  "    KDFPDK            KDPFDK    ",
+  "    KDFFFKKKKKKKKKKKKKKFFFDK    ",
+  "   KDFFFFFFFFFFFFFFFFFFFFFFDK   ",
+  "  KDFFFFFFFFFFFFFFFFFFFFFFFFDK  ",
+  "  KFFFFFFFFFFFFFFFFFFFFFFFFFFK  ",
+  " KFFFEEFFFFFFFFFFFFFFFFEEFFFFFK ",
+  " KFFFEEFFFFFFFFFFFFFFFFEEFFFFFK ",
+  " KFFFFFFFFFFFFFNNFFFFFFFFFFFFFK ",
+  " KFFFFFFFFFFFFPNNPFFFFFFFFFFFFK ",
+  "KFFFFFFFFFFFFLLLLLLFFFFFFFFFFFFK",
+  "KFFFFFFFFFFFLLLLLLLLFFFFFFFFFFFK",
+  "KFFFFFFFFFFFFLLLLLLFFFFFFFFFFFFK",
+  "KLFFFFFFFFFFFFFFFFFFFFFFFFFFFFLK",
+  "KLLFFFFFFFFFFFFFFFFFFFFFFFFFFLLK",
+  "KLLLFFFFFFFFFFFFFFFFFFFFFFFFLLLK",
+  "KLLLLFFFFFFFFFFFFFFFFFFFFFFLLLLK",
+  "KLLLLLLFFFFFFFFFFFFFFFFFFLLLLLLK",
+  " KLLLLLLLLFFFFFFFFFFFFLLLLLLLLK ",
+  " KLLLLLLLLLLLLLLLLLLLLLLLLLLLLK ",
+  "  KLLLLLLLLLLLLLLLLLLLLLLLLLLK  ",
+  "  KKLLLLLLLKLLLLLLKLLLLLLLLKK   ",
+  "   KKKKKKK KKKKKK KKKKKKKKK     ",
+  "                                ",
+  "                                ",
+  "                                ",
+  "                                ",
+  "                                ",
+  "                                ",
+]);
+
+// === 2. SLIM — tall lean siamese, long legs, slender tail ===================
+const SLIM = norm([
+  "                                ",
+  "         KK        KK           ",
+  "        KDFK      KFDK          ",
+  "        KFPK      KPFK          ",
+  "        KFFKKKKKKKKFFK          ",
+  "        KFFFFFFFFFFFFK          ",
+  "       KFFFFFFFFFFFFFFK         ",
+  "       KFEEFFFFFFFFEEFK         ",
+  "       KFEEFFFFFFFFEEFK         ",
+  "       KFFFFFFNNFFFFFFK         ",
+  "       KFFFFFPNNPFFFFFK         ",
+  "       KFFFFLLLLLLFFFFK         ",
+  "        KFFFFLLLLFFFFK          ",
+  "        KFFFFFFFFFFFFK          ",
+  "         KFFFFFFFFFFK           ",
+  "          KFFFFFFFFK            ",
+  "          KFFFFFFFFK            ",
+  "          KFFFFFFFFK        K   ",
+  "          KFFFFFFFFK       KFK  ",
+  "          KFFFFFFFFK      KFFK  ",
+  "         KFFFFFFFFFFK    KFFK   ",
+  "         KFFFFFFFFFFK   KFFK    ",
+  "         KFFFFFFFFFFKKKKFFK     ",
+  "         KFFFFFFFFFFFFFFFK      ",
+  "         KFFFFFFFFFFFFFFK       ",
+  "         KFFKLLLLKFFFFFK        ",
+  "         KFFKLLLLKFFFFK         ",
+  "        KLLK    KLLK            ",
+  "        KKKK    KKKK            ",
+  "                                ",
+  "                                ",
+  "                                ",
+]);
+
+// === 3. KITTEN — tiny, oversized head, stubby body, big eyes, blush =========
+const KITTEN = norm([
+  "                                ",
+  "                                ",
+  "                                ",
+  "                                ",
+  "          KK        KK          ",
+  "         KDPDK    KDPDK         ",
+  "        KDFPFDK  KDFPFDK        ",
+  "        KFFFFFKKKKFFFFFK        ",
+  "       KFFFFFFFFFFFFFFFFK       ",
+  "       KFFFFFFFFFFFFFFFFK       ",
+  "      KFFEEEFFFFFFEEEFFFK       ",
+  "      KFEEEEEFFFFEEEEEFFK       ",
+  "      KFEEEKEFFFFEEEKEFFFK      ",
+  "      KFFEEEFFNNFFEEEEFFFK      ",
+  "      KFFFFFFFNNFFFFFFFFK       ",
+  "      KFFBBFFFFFFFFFBBFFK       ",
+  "       KFFFFFLLLLLLFFFFFK       ",
+  "       KFFFFFFLLLLFFFFFFK       ",
+  "        KFFFFFFFFFFFFFFK        ",
+  "        KFFFFFFFFFFFFFFK        ",
+  "        KFFFFFFFFFFFFFFK        ",
+  "        KFFFKFFFFKFFFFFK        ",
+  "        KLLLKFFFFKLLLLLK        ",
+  "        KKKK KKKK KKKKKK        ",
+  "                                ",
+  "                                ",
+  "                                ",
+  "                                ",
+  "                                ",
+  "                                ",
+  "                                ",
+  "                                ",
+]);
+
+// === 4. FLUFF — longhair, fuzzy mane, ear tufts, wide ragged silhouette =====
+const FLUFF = norm([
+  "                                ",
+  "      D D            D D        ",
+  "     DKDK            KDKD       ",
+  "    DKFDK            KDFKD      ",
+  "   DKFPFDK          KDFPFKD     ",
+  "  DKFFFFDKDD    DDKDFFFFKD      ",
+  "  KDFFFFFFDKKKKKKDFFFFFFDK      ",
+  " DKFFFFFFFFFFFFFFFFFFFFFFKD     ",
+  " KDFFFFFFFFFFFFFFFFFFFFFFDK     ",
+  "DKFFFEEFFFFFFFFFFFFEEFFFFFKD    ",
+  "DKFFFEEFFFFFFFFFFFFEEFFFFFKD    ",
+  "DKFFFFFFFFFFFNNFFFFFFFFFFFKD    ",
+  " KDFFFFFFFFFPNNPFFFFFFFFFDK     ",
+  " DKFFFFFFFFLLLLLLFFFFFFFFKD     ",
+  "DKDFFFFFFFFLLLLLLFFFFFFFDKD     ",
+  "DKDDFFFFFFFFLLLLFFFFFFFDDKD     ",
+  " DKDDFFFFFFFFFFFFFFFFFDDKD      ",
+  " DKFDDFFFFFFFFFFFFFFFDDFKD      ",
+  "DKFFDDFFFFFFFFFFFFFFDDFFKD      ",
+  "DKFFFDDFFFFFFFFFFFFDDFFFKD   DD ",
+  "DKFFFFDDFFFFFFFFFFDDFFFFKD  DKKD",
+  " KDFFFFDDFFFFFFFFDDFFFFDK  DKFKD",
+  " DKFFFFFDDFFFFFFDDFFFFFKD DKFFKD",
+  "  DKFFFFFDDDFFDDDFFFFFKD DKFFDK ",
+  "  DKDFFFFFFDDDDDDFFFFDKDDKFFDKD ",
+  "   DKDLLLLLLLLLLLLLLDKKKDFFDKD  ",
+  "   DKDDLLLLLLLLLLLLDDKDDDDDKD   ",
+  "    DKKDDLLLLLLLLDDKKD  DKKD    ",
+  "     DDKKDDDDDDDDKKDD           ",
+  "       DDKKKKKKKKDD             ",
+  "                                ",
+  "                                ",
+]);
+
+const CATS = [
+  { name: "Today's cat", tag: "current", grid: CURRENT, current: true,
+    desc: "Chunky, big-headed shorthair sitting upright. The baseline." },
+  { name: "Chonk", tag: "round", grid: CHONK,
+    desc: "Low, round blob. No neck, stubby legs, wide belly. Maximum loaf energy." },
+  { name: "Slim", tag: "tall", grid: SLIM,
+    desc: "Lean & leggy siamese. Tall, elegant, with a long flicking tail." },
+  { name: "Kitten", tag: "tiny", grid: KITTEN,
+    desc: "Small body, oversized head, huge sparkly eyes and blush. Babey." },
+  { name: "Fluff", tag: "longhair", grid: FLUFF,
+    desc: "Fuzzy longhair with a ragged mane, ear tufts and a plume tail." },
+];
+
+let showGrid = false;
+const stages = [];
+
+function buildCard(cat){
+  const card = document.createElement("div");
+  card.className = "card" + (cat.current ? " current" : "");
+  const stage = document.createElement("div"); stage.className = "stage";
+  const cv = document.createElement("canvas"); cv.width = 32; cv.height = 32;
+  stage.appendChild(cv);
+  const name = document.createElement("div"); name.className = "name"; name.textContent = cat.name;
+  const tag = document.createElement("div"); tag.className = "tag"; tag.textContent = cat.tag;
+  const desc = document.createElement("div"); desc.className = "desc"; desc.textContent = cat.desc;
+  const dims = document.createElement("div"); dims.className = "dims";
+  card.append(stage, tag, name, desc, dims);
+  document.getElementById("grid").appendChild(card);
+  stages.push({ cat, cv, ctx: cv.getContext("2d"), dims });
+  return stage;
+}
+
+// Measure the actual occupied bounding box (so we can report real footprint).
+function bbox(grid){
+  let minX=32,minY=32,maxX=0,maxY=0,any=false;
+  grid.forEach((row,y)=>[...row].forEach((ch,x)=>{ if(ch!==" "){any=true;minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);}}));
+  return any ? {w:maxX-minX+1,h:maxY-minY+1,x:minX,y:minY} : {w:0,h:0,x:0,y:0};
+}
+
+const eyePixels = new Map(); // per-canvas list of {x,y} eye cells for pupil tracking
+
+function draw(stage){
+  const { cat, ctx, dims } = stage;
+  const pal = PALETTE(document.getElementById("fur").value);
+  ctx.clearRect(0,0,32,32);
+  const eyes = [];
+  cat.grid.forEach((row,y)=>[...row].forEach((ch,x)=>{
+    if (ch === "E") eyes.push({x,y});
+    const col = pal[ch];
+    if (col){ ctx.fillStyle = col; ctx.fillRect(x,y,1,1); }
+  }));
+  eyePixels.set(stage.cv, eyes);
+  if (showGrid){
+    ctx.strokeStyle = "#ffffff14"; ctx.lineWidth = 0.04;
+    for(let i=0;i<=32;i++){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,32);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(32,i);ctx.stroke();}
+  }
+  const bb = bbox(cat.grid);
+  dims.textContent = `footprint ${bb.w}×${bb.h}px · canvas 32×32`;
+}
+
+// Live pupils that follow the cursor, drawn over the eye cells each frame.
+let mouse = { x: innerWidth/2, y: innerHeight/2 };
+addEventListener("mousemove", e => { mouse = { x: e.clientX, y: e.clientY }; });
+
+function drawPupils(){
+  for (const s of stages){
+    const eyes = eyePixels.get(s.cv); if(!eyes || !eyes.length) continue;
+    const r = s.cv.getBoundingClientRect();
+    const scale = r.width / 32;
+    // group eye cells into clusters (left/right) by x
+    const xs = eyes.map(e=>e.x); const midX = (Math.min(...xs)+Math.max(...xs))/2;
+    const groups = [eyes.filter(e=>e.x<=midX), eyes.filter(e=>e.x>midX)];
+    s.ctx.save();
+    for (const g of groups){
+      if(!g.length) continue;
+      const cx = g.reduce((a,e)=>a+e.x,0)/g.length;
+      const cy = g.reduce((a,e)=>a+e.y,0)/g.length;
+      const w  = Math.max(...g.map(e=>e.x))-Math.min(...g.map(e=>e.x))+1;
+      const h  = Math.max(...g.map(e=>e.y))-Math.min(...g.map(e=>e.y))+1;
+      const screenX = r.left + (cx+0.5)*scale, screenY = r.top + (cy+0.5)*scale;
+      let dx = mouse.x-screenX, dy = mouse.y-screenY;
+      const m = Math.hypot(dx,dy)||1; dx/=m; dy/=m;
+      const ox = Math.round(dx*Math.max(0,(w-1)/2-0.2));
+      const oy = Math.round(dy*Math.max(0,(h-1)/2-0.2));
+      s.ctx.fillStyle = "#241c2b";
+      s.ctx.fillRect(Math.round(cx-0.5)+ox, Math.round(cy-0.5)+oy, w>=3?2:1, h>=3?2:1);
+    }
+    s.ctx.restore();
+  }
+  requestAnimationFrame(drawPupils);
+}
+
+// --- swatches ---
+const SWATCHES = ["#7d8794","#2c2c34","#e8e2d6","#caa472","#3b3f52","#f0a35e","#b85c4a","#ffffff"];
+const swWrap = document.getElementById("swatches");
+SWATCHES.forEach(c=>{
+  const b = document.createElement("div"); b.className="swatch"; b.style.background=c;
+  b.title = c; b.onclick = () => { document.getElementById("fur").value=c; renderAll(); };
+  swWrap.appendChild(b);
+});
+
+function applyZoom(){
+  const z = +document.getElementById("zoom").value;
+  stages.forEach(s => { s.cv.style.width = (32*z)+"px"; s.cv.style.height = (32*z)+"px"; });
+}
+function renderAll(){ stages.forEach(draw); }
+
+CATS.forEach(buildCard);
+document.getElementById("fur").addEventListener("input", renderAll);
+document.getElementById("zoom").addEventListener("input", applyZoom);
+document.getElementById("toggleGrid").addEventListener("click", () => { showGrid=!showGrid; renderAll(); });
+applyZoom(); renderAll(); drawPupils();
+</script>
+</body>
+</html>
