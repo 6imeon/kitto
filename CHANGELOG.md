@@ -4,9 +4,13 @@ All notable changes to Kitto are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-Versions track the [milestone plan](KITTO_SPEC.md#5-milestones-build-in-this-order).
+Versions track the [milestone plan](docs/KITTO_SPEC.md#5-milestones-build-in-this-order).
 
 ## [Unreleased]
+
+## [0.1.0] - 2026-06-06
+
+First public release. macOS (Apple Silicon), distributed as an unsigned `.dmg`.
 
 ### Added — Ginger cat (vector pixel tabby)
 
@@ -325,7 +329,7 @@ Versions track the [milestone plan](KITTO_SPEC.md#5-milestones-build-in-this-ord
 - Tauri 2 application scaffold (Rust core + TypeScript/Vite frontend).
 - Frameless, transparent, always-on-top overlay window showing a single static
   placeholder cat sprite, draggable anywhere via `data-tauri-drag-region`.
-- Repository structure per [KITTO_SPEC §8](KITTO_SPEC.md#8-conventions): `src/`
+- Repository structure per [KITTO_SPEC §8](docs/KITTO_SPEC.md#8-conventions): `src/`
   (render, sprites, state, config, ipc) and `src-tauri/src/` (window, sensors, agents).
 - HTML5 canvas renderer with nearest-neighbour upscaling and a forward-compatible
   sprite manifest (`assets/manifest.json`).
