@@ -34,6 +34,10 @@ pub fn run() {
         ])
         .setup(|app| {
             window::configure(app)?;
+            // Keep the overlay fitted to the primary monitor across live resolution /
+            // display changes (without this, raising the resolution leaves the cat
+            // parking at the old, now-mid-screen window edge).
+            window::spawn(app.handle());
             sensors::cursor::spawn(app.handle());
             sensors::input::spawn(app.handle());
             sensors::scroll::spawn(app.handle());

@@ -8,6 +8,17 @@ Versions track the [milestone plan](docs/KITTO_SPEC.md#5-milestones-build-in-thi
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-07
+
+### Fixed
+
+- **Cat now reaches the screen corner at any resolution.** The overlay was fitted to
+  the primary monitor only once at startup, so changing the display resolution while
+  Kitto ran left the window covering only part of the screen — the cat parked at the
+  old, now-mid-screen edge instead of the real corner. A background watcher now re-fits
+  the overlay to the primary monitor whenever its geometry changes (resolution, scale,
+  or display arrangement), keeping the cat's edges glued to the true screen edges live.
+
 ## [0.1.0] - 2026-06-06
 
 First public release. macOS (Apple Silicon), distributed as an unsigned `.dmg`.
