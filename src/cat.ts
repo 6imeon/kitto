@@ -90,6 +90,15 @@ const SLEEP_WAKE_CLICKS = 3;
 /** …landing within this window (ms of each other) wake it. A longer pause resets the run. */
 const SLEEP_WAKE_WINDOW_MS = 1200;
 
+/**
+ * An *autonomous* corner nap (the cat wandered there on its own, MA-1) lasts a
+ * random span in [{@link NAP_MIN_MS}, {@link NAP_MAX_MS}]; when it elapses the cat
+ * wakes itself and resumes wandering. Re-rolled each nap. A *drag-to-bed* nap (the
+ * user placed it — {@link Cat.napAt}) has no timer: it sleeps until a triple-click.
+ */
+const NAP_MIN_MS = 3 * 60_000; // 3 minutes
+const NAP_MAX_MS = 30 * 60_000; // 30 minutes
+
 /** How close (logical px) to the screen centre counts as "arrived" when delivering a
  *  reminder, so the cat settles into its attention pose instead of inching forever. */
 const REMINDER_ARRIVE_EPS = 2;
@@ -267,12 +276,19 @@ export class Cat {
    *  into the corner the user dropped it near, after which it lies down. Like a
    *  commanded wander it overrides the reactive ladder, and a real cue cancels it. */
   private draggedToBed = false;
-  /** Deep sleep: once the cat has actually lain down to nap (Sleep pose, whether it
-   *  walked to a corner or was dropped there), it sleeps through ordinary interrupts —
-   *  keys, scroll, cursor, hover all leave it asleep. Only a deliberate triple-click
-   *  on the cat wakes it (see {@link handleSleepClick}). This is what stops a keystroke
-   *  cutting a nap to ~0.5s. Cleared on the wake. */
+  /** Deep sleep: the user *dragged the cat into a corner* (drag-to-bed, {@link napAt}).
+   *  It sleeps through ALL ordinary interrupts — keys, scroll, cursor, hover — and has
+   *  no wake timer; only a deliberate triple-click on the cat wakes it (see
+   *  {@link handleSleepClick}). Mutually exclusive with {@link napSleep}. Cleared on the wake. */
   private deepSleep = false;
+  /** Light autonomous nap: the cat *wandered to a corner on its own* (MA-1) and lay
+   *  down. Unlike {@link deepSleep} it wakes on any real cue (key/scroll/click/drag)
+   *  AND on its own once {@link napUntil} elapses — then it gets up and wanders again.
+   *  It still ignores a passing cursor/hover so a glance doesn't cut the nap short. */
+  private napSleep = false;
+  /** performance.now() deadline at which an autonomous {@link napSleep} ends itself
+   *  (a fresh random span in [{@link NAP_MIN_MS}, {@link NAP_MAX_MS}] per nap). */
+  private napUntil = 0;
   /** Clicks landed on the cat during deep sleep, and when the last one arrived. Three
    *  within {@link SLEEP_WAKE_WINDOW_MS} wake it; the run resets if you pause. */
   private sleepClicks = 0;
@@ -438,6 +454,8 @@ export class Cat {
    *  ambient clock so it doesn't immediately wander off again. */
   private wakeFromDeepSleep(): void {
     this.deepSleep = false;
+    this.napSleep = false;
+    this.napUntil = 0;
     this.director.update({
       idleMs: 0, // a drop → the Director's nap sees an interrupt and wakes
       position: this.loco.position,
@@ -450,10 +468,37 @@ export class Cat {
     this.wakeStretchUntil = performance.now() + WAKE_STRETCH_MS;
   }
 
+  /** Roll a random autonomous-nap length in [{@link NAP_MIN_MS}, {@link NAP_MAX_MS}]
+   *  (MA-1). Uses the injected rng, so naps are deterministic under test (spec §8). */
+  private randomNapMs(): number {
+    return NAP_MIN_MS + this.rng() * (NAP_MAX_MS - NAP_MIN_MS);
+  }
+
+  /** End an autonomous nap (its timer elapsed, or a real cue arrived) and let ordinary
+   *  ambient life resume: clear the nap flags, reset the ambient clock, and stand the
+   *  Director down out of its nap phase (back to dwell) so it re-arms a fresh wander
+   *  after the idle delay. Driving the Director explicitly (rather than relying on the
+   *  next frame to notice the clock drop) keeps the wake robust to frame timing. (A
+   *  drag-to-bed deep sleep wakes via {@link wakeFromDeepSleep} instead.) */
+  private wakeFromNap(): void {
+    this.napSleep = false;
+    this.napUntil = 0;
+    this.ambientIdleMs = 0;
+    this.director.update({
+      idleMs: 0, // a drop → the Director's nap sees an interrupt and stands down
+      position: this.loco.position,
+      bounds: this.viewport ? this.viewport() : { w: 0, h: 0 },
+      half: { x: this.canvas.width / 2, y: this.canvas.height / 2 },
+      arrived: false,
+    });
+  }
+
   /** Feed a generic activity signal (e.g. the overlay receiving focus, or a drag) —
    *  wakes the cat and counts as a real interaction for the ambient Director. */
   notifyActivity(): void {
     this.deepSleep = false; // a grab/drag always rouses it
+    this.napSleep = false; // …and ends any light autonomous nap
+    this.napUntil = 0;
     this.sleepClicks = 0;
     this.machine.activity();
     this.ambientIdleMs = 0;
@@ -687,6 +732,7 @@ export class Cat {
       this.pendingActivity = false;
       if (!this.deepSleep) {
         activityThisFrame = true; // a real key/scroll cue — resets the ambient clock below
+        if (this.napSleep) this.wakeFromNap(); // a real cue ends a light autonomous nap
         if (!this.stretching && !jumping && !waking) this.machine.activity();
       }
     }
@@ -752,6 +798,10 @@ export class Cat {
         this.draggedToBed = false;
         this.loco.stop();
         this.applyDirectorIntent(this.director.napInPlace(this.ambientIdleMs), this.machine.state);
+        // The USER placed it in bed → deep sleep: only a triple-click wakes it, and
+        // there's no auto-wake timer (unlike an autonomous nap). This is the branch
+        // that distinguishes a dropped-in-corner nap from one the cat chose itself.
+        this.deepSleep = true;
       } else {
         this.machine.walk();
       }
@@ -815,15 +865,30 @@ export class Cat {
     // Pet drops only the pose input, never the real `overCat` used for hover.
     let st: CatState;
     if (this.deepSleep) {
-      // Deeply asleep: ignore the whole reactive ladder (keys/scroll/hover/hunt/agent)
-      // and just keep sleeping. Only handleSleepClick (triple-click) clears deepSleep.
+      // Dragged-to-bed deep sleep: ignore EVERYTHING (keys/scroll/hover/hunt/agent and
+      // even a stretch reminder) and just keep sleeping. Only handleSleepClick
+      // (triple-click) clears it — that's the "stays put until I click 3 times" the
+      // user asked for when they place the cat in a corner themselves.
       st = this.machine.sleep();
     } else if (jumping) {
       st = this.machine.jump();
     } else if (this.stretching || waking) {
-      // Timer-driven stretch reminder, or the ambient wake-stretch after a nap is
-      // interrupted (MA-1) — both strike the Stretch pose and hold it.
+      // Timer-driven stretch reminder, or the ambient wake-stretch after a nap ends
+      // (MA-1) — both strike the Stretch pose and hold it. Checked ABOVE the light
+      // napSleep below so a stretch reminder is actually visible while the cat is
+      // autonomously napping (it stretches in place, then settles back into the nap).
       st = this.machine.stretch();
+    } else if (this.napSleep) {
+      // Light autonomous nap (the cat wandered to a corner itself): ignore a passing
+      // cursor/hover so a glance doesn't cut it short, but end the nap on its own once
+      // the random span elapses — then wake and resume wandering. A real key/scroll
+      // cue already ended it above (wakeFromNap); a click/drag does so via notifyActivity.
+      if (now >= this.napUntil) {
+        this.wakeFromNap();
+        st = this.machine.activity(); // up to Idle; the Director re-arms a wander below
+      } else {
+        st = this.machine.sleep();
+      }
     } else {
       const r = this.reactions;
       st = this.machine.sense({
@@ -855,8 +920,13 @@ export class Cat {
     // key/scroll cue — NOT on a gentle cursor glance (Idle/FollowEyes) or the cat's
     // own ambient motion (Walk/Sleep). So you can move the cursor to watch the cat
     // without resetting its wander timer (KITTO_AMBIENT §2 interrupt list).
+    // While the cat is asleep (deep or light), keep the ambient clock drifting upward
+    // regardless of the pose — even a stretch reminder that briefly shows over the nap
+    // (see the gate above) must NOT reset it, or the Director would read the reset as an
+    // interrupt and abandon the nap. Otherwise a real cue / reactive pose resets it.
+    const asleep = this.deepSleep || this.napSleep;
     this.ambientIdleMs =
-      activityThisFrame || isReactivePose(st) ? 0 : this.ambientIdleMs + Math.max(0, dtMs);
+      !asleep && (activityThisFrame || isReactivePose(st)) ? 0 : this.ambientIdleMs + Math.max(0, dtMs);
 
     // Locomotion (MA-0). The cat only travels while an *ambient* pose owns the
     // frame; any real interaction (Pet/Hunt/Type/Overheat/Scroll/Think/Jump/Stretch)
@@ -882,12 +952,15 @@ export class Cat {
         arrived,
       });
       st = this.applyDirectorIntent(intent, st);
-      // Once the cat has actually lain down (Sleep + the Director in its nap phase),
-      // engage deep sleep: from here ordinary interrupts (key/scroll/cursor/hover) no
-      // longer wake it — only a triple-click does (handleSleepClick). This is what
-      // keeps a nap from being cut to ~0.5s by the next keystroke.
-      if (st === "Sleep" && this.director.currentPhase === "nap") {
-        this.deepSleep = true;
+      // The cat wandered to a corner on its own and lay down (Sleep + Director napping):
+      // begin a LIGHT, random-length nap. It ignores a passing cursor but wakes itself
+      // after NAP_MIN..NAP_MAX (or on any real cue) and wanders again — so it no longer
+      // gets stuck asleep in the corner forever. A drag-to-bed nap takes the deepSleep
+      // path in the drag branch above instead; guarding on both flags keeps that nap
+      // deep and stops this from re-arming every frame.
+      if (st === "Sleep" && this.director.currentPhase === "nap" && !this.deepSleep && !this.napSleep) {
+        this.napSleep = true;
+        this.napUntil = now + this.randomNapMs();
       }
     }
 

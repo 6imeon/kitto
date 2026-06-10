@@ -1,6 +1,6 @@
 [package]
 name = "kitto"
-version = "0.1.1"
+version = "0.1.2"
 description = "A tiny animated pixel cat that reacts to your AI coding agents."
 edition = "2021"
 rust-version = "1.77"

@@ -454,6 +454,75 @@ describe("Cat locomotion drives on-screen movement", () => {
     expect(cat.state).not.toBe("Sleep");
   });
 
+  // The reported bug: a cat that wandered to a corner ON ITS OWN used to lock into deep
+  // sleep there and never move again (only a triple-click would wake it). An autonomous
+  // nap must instead be light + self-limiting.
+  it("an autonomous corner nap is a LIGHT sleep — wakes itself after its span, no triple-click", () => {
+    const { canvas } = makeCanvas();
+    const cat = new Cat(canvas, {} as CanvasImageSource, makeAtlas(), { w: 32, h: 32 }, {
+      viewport: () => ({ w: 1000, h: 600 }),
+      wander: { enabled: true, wanderAfterMs: 300, cornerMargin: 8 },
+      fillers: { enabled: false, minGapMs: 1000, maxGapMs: 1000 },
+      sleepAfterMs: Number.POSITIVE_INFINITY,
+      rng: () => 0, // bias to the top-left corner (= the cat's start); nap span = 3 min min
+    });
+    cat.placeAt(40, 40); // exactly the top-left nap corner (half=32 + margin 8)
+    cat.start();
+    frame();
+    for (let i = 0; i < 200; i++) frame(16); // dwell, then lie down in the corner on its own
+    expect(cat.state).toBe("Sleep");
+    expect(cat.sleeping).toBe(false); // NOT deep sleep — it chose this nap itself
+
+    // No triple-click: once the random span elapses it gets up on its own and resumes life.
+    frame(2_000_000); // jump the clock well past the 3–30 min nap deadline
+    expect(cat.state).not.toBe("Sleep");
+  });
+
+  it("a real key cue ends a light autonomous nap (a single cue, unlike a deep nap)", () => {
+    const { canvas } = makeCanvas();
+    const cat = new Cat(canvas, {} as CanvasImageSource, makeAtlas(), { w: 32, h: 32 }, {
+      viewport: () => ({ w: 1000, h: 600 }),
+      wander: { enabled: true, wanderAfterMs: 300, cornerMargin: 8 },
+      fillers: { enabled: false, minGapMs: 1000, maxGapMs: 1000 },
+      sleepAfterMs: Number.POSITIVE_INFINITY,
+      rng: () => 0,
+    });
+    cat.placeAt(40, 40);
+    cat.start();
+    frame();
+    for (let i = 0; i < 200; i++) frame(16);
+    expect(cat.state).toBe("Sleep");
+    expect(cat.sleeping).toBe(false);
+
+    cat.handleKey(); // one ordinary cue wakes a light nap (a deep nap would ignore it)
+    for (let i = 0; i < 3; i++) frame(16);
+    expect(cat.state).not.toBe("Sleep");
+  });
+
+  it("a stretch reminder still shows while the cat is autonomously napping, then it settles back", () => {
+    const { canvas } = makeCanvas();
+    const cat = new Cat(canvas, {} as CanvasImageSource, makeAtlas(), { w: 32, h: 32 }, {
+      viewport: () => ({ w: 1000, h: 600 }),
+      wander: { enabled: true, wanderAfterMs: 300, cornerMargin: 8 },
+      fillers: { enabled: false, minGapMs: 1000, maxGapMs: 1000 },
+      sleepAfterMs: Number.POSITIVE_INFINITY,
+      rng: () => 0,
+    });
+    cat.placeAt(40, 40);
+    cat.start();
+    frame();
+    for (let i = 0; i < 200; i++) frame(16);
+    expect(cat.state).toBe("Sleep");
+
+    cat.setStretching(true); // the 30-min stretch reminder fires
+    frame(16);
+    expect(cat.state).toBe("Stretch"); // visible over the nap — was suppressed before
+
+    cat.setStretching(false); // reminder ends — back to its nap (still mid-span)
+    frame(16);
+    expect(cat.state).toBe("Sleep");
+  });
+
   it("writes the advancing position into the canvas transform", () => {
     const { canvas, style } = makeCanvas();
     const cat = new Cat(canvas, {} as CanvasImageSource, makeAtlas(), { w: 32, h: 32 });

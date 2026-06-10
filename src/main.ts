@@ -25,6 +25,7 @@ import { loadReminders, saveReminders } from "./reminders/persist";
 import { normalizeReminders, type Reminder } from "./reminders/model";
 import { parseWhen } from "./reminders/parse";
 import { ReminderBanner } from "./render/reminder-banner";
+import { StretchBanner } from "./render/stretch-banner";
 
 /** How far ahead the Snooze button pushes a reminder (MA-2 / B1). */
 const SNOOZE_MS = 5 * 60_000;
@@ -343,8 +344,14 @@ async function main(): Promise<void> {
   // M4 timers. The manager runs its own wall-clock loop (so it fires across system
   // sleep/wake); it drives the cat's Stretch pose and the floating timer overlay.
   const overlay = new TimerOverlay(timerCanvas);
+  const stretchBanner = new StretchBanner();
   timers = new TimerManager(settings, {
-    onStretchChange: (active) => cat.setStretching(active),
+    // A stretch reminder: the cat strikes the stretch pose AND a big "STRETCH!" flashes
+    // centre-screen to actually prompt the user to stretch (not just the cat).
+    onStretchChange: (active) => {
+      cat.setStretching(active);
+      stretchBanner.setVisible(active);
+    },
     onChange: (pomo) => {
       overlay.render(pomo);
       controls.update(pomo);

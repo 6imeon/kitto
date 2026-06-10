@@ -5,7 +5,7 @@
 **A tiny animated pixel cat that lives on your desktop — and reacts to your AI coding agents.**
 
 ![platform](https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-black)
-![version](https://img.shields.io/badge/version-0.1.1-blue)
+![version](https://img.shields.io/badge/version-0.1.2-blue)
 ![license](https://img.shields.io/badge/license-personal--use-lightgrey)
 
 </div>

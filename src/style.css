@@ -405,3 +405,47 @@ body {
 #reminder-dismiss:hover {
   background: #5d87ff;
 }
+
+/* Stretch reminder nudge (M4): a big "STRETCH!" dead-centre while the cat stretches.
+   Non-interactive — purely a prompt — so it never blocks clicks to the desktop. */
+#stretch-banner {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  pointer-events: none;
+  padding: 18px 36px;
+  border-radius: 16px;
+  background: rgba(28, 28, 34, 0.96);
+  color: #f4f4f8;
+  font: 800 clamp(40px, 9vw, 96px) / 1 system-ui, -apple-system, sans-serif;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  animation: stretch-pulse 1s ease-in-out infinite;
+}
+
+#stretch-banner[hidden] {
+  display: none;
+}
+
+@keyframes stretch-pulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.95;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.06);
+    opacity: 1;
+  }
+}
+
+/* Respect a user's reduced-motion preference: keep the nudge, drop the pulse. */
+@media (prefers-reduced-motion: reduce) {
+  #stretch-banner {
+    animation: none;
+  }
+}

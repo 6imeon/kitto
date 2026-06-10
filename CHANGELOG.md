@@ -8,6 +8,24 @@ Versions track the [milestone plan](docs/KITTO_SPEC.md#5-milestones-build-in-thi
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-06-10
+
+### Fixed
+
+- **The cat no longer gets stuck asleep in a corner.** A cat that wandered to a corner
+  on its own would lock into deep sleep there and never move again (only a triple-click
+  woke it). Now a self-chosen corner nap is a light, random 3–30 minute doze: the cat
+  wakes itself when it's done and resumes wandering, and any ordinary cue (a key, scroll,
+  or click) rouses it too. Dragging the cat into a corner yourself still puts it into a
+  deliberate deep sleep that holds until you click it three times.
+
+### Added
+
+- **Stretch reminder now prompts *you*.** When the stretch timer fires, a large
+  **"STRETCH!"** flashes in the centre of the screen while the cat stretches alongside —
+  an actual nudge to get up and stretch, not just a cat animation. It's non-interactive,
+  so clicks still pass through to whatever's underneath.
+
 ## [0.1.1] - 2026-06-07
 
 ### Fixed

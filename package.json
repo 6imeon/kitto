@@ -1,6 +1,6 @@
 {
   "name": "kitto",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "A tiny animated pixel cat that lives on your desktop and reacts to your AI coding agents.",
